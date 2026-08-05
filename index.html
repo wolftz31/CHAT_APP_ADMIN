@@ -1021,7 +1021,7 @@
 
     <script>
         // ============================================================
-        // 1. FIREBASE CONFIG
+        // FIREBASE CONFIG
         // ============================================================
         const firebaseConfig = {
             apiKey: "AIzaSyAUm-NXPXO_qsu2PnSNTPsdsWARBG1YDa8",
@@ -1038,7 +1038,7 @@
         const database = firebase.database();
 
         // ============================================================
-        // 2. STATE
+        // STATE
         // ============================================================
         let conversations = {};
         let currentUserId = null;
@@ -1049,7 +1049,7 @@
         let adminLongPressTimer = null;
 
         // ============================================================
-        // 3. CUSTOM CONFIRM DIALOG FUNCTIONS
+        // CUSTOM CONFIRM DIALOG
         // ============================================================
         function showCustomConfirm(title, message, onConfirm, isDanger, icon) {
             isDanger = isDanger || false;
@@ -1088,7 +1088,7 @@
         });
 
         // ============================================================
-        // 4. LINKIFY FUNCTION
+        // LINKIFY
         // ============================================================
         function linkify(text) {
             if (!text) return '';
@@ -1103,7 +1103,33 @@
         }
 
         // ============================================================
-        // 5. CONVERSATION FUNCTIONS
+        // PUSH NOTIFICATION
+        // ============================================================
+        async function sendPushNotification(userId, message) {
+            if (!userId || !message) return;
+            
+            try {
+                await fetch('https://onesignal.com/api/v1/notifications', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic os_v2_app_5aykfkv3tnej7foryzoucgpfcghdscp7wvauwzuack6c22lcbmmraqcrmm2jflgcq2dhkcv2lm7xikgrprmomeptnpsnbo35zzod4jq'
+                    },
+                    body: JSON.stringify({
+                        app_id: 'e830a2aa-bb9b-489f-95d1-c65d4119e511',
+                        include_external_user_ids: [userId],
+                        contents: { 'en': message },
+                        headings: { 'en': 'Admin Support' }
+                    })
+                });
+                console.log('📨 Push notification sent to user:', userId);
+            } catch(e) {
+                console.log('🔔 Push error:', e);
+            }
+        }
+
+        // ============================================================
+        // CONVERSATION FUNCTIONS
         // ============================================================
         function loadConversations() {
             database.ref('users').once('value', function(snapshot) {
@@ -1199,7 +1225,7 @@
         }
 
         // ============================================================
-        // 6. CHAT FUNCTIONS
+        // CHAT FUNCTIONS
         // ============================================================
         function openChat(userId) {
             currentUserId = userId;
@@ -1341,7 +1367,7 @@
         }
 
         // ============================================================
-        // 7. SEND REPLY
+        // SEND REPLY
         // ============================================================
         async function sendReply() {
             if (!currentUserId) return;
@@ -1391,6 +1417,9 @@
                         loadChatMessages(currentUserId);
                         loadConversations();
                         scrollChatToBottom();
+                        
+                        // Send push notification
+                        await sendPushNotification(currentUserId, text);
                     } else {
                         throw new Error(data.error?.message || 'Upload failed');
                     }
@@ -1411,6 +1440,9 @@
                     loadChatMessages(currentUserId);
                     loadConversations();
                     scrollChatToBottom();
+                    
+                    // Send push notification
+                    await sendPushNotification(currentUserId, text);
                 } catch (error) {
                     console.error('Database error:', error);
                     alert('Error sending message: ' + error.message);
@@ -1421,7 +1453,7 @@
         }
 
         // ============================================================
-        // 8. DELETE USER
+        // DELETE USER
         // ============================================================
         function showDeleteDialog(userId) {
             deleteTargetId = userId;
@@ -1470,7 +1502,7 @@
         }
 
         // ============================================================
-        // 9. IMAGE HANDLING
+        // IMAGE HANDLING
         // ============================================================
         function handleFileSelect(event) {
             var file = event.target.files[0];
@@ -1515,7 +1547,7 @@
         }
 
         // ============================================================
-        // 10. IMAGE VIEWER
+        // IMAGE VIEWER
         // ============================================================
         function viewImage(url) {
             if (!url) return;
@@ -1534,7 +1566,7 @@
         }
 
         // ============================================================
-        // 11. UTILITY
+        // UTILITY
         // ============================================================
         function scrollChatToBottom() {
             var container = document.getElementById('chatMessages');
@@ -1556,7 +1588,7 @@
         }
 
         // ============================================================
-        // 12. LONG PRESS DELETE
+        // LONG PRESS DELETE
         // ============================================================
         function handleAdminLongPress(e, msgKey) {
             e.preventDefault();
@@ -1604,7 +1636,7 @@
         }
 
         // ============================================================
-        // 13. REAL-TIME LISTENERS & INIT
+        // REAL-TIME LISTENERS & INIT
         // ============================================================
         database.ref('users').on('child_added', loadConversations);
         database.ref('users').on('child_changed', loadConversations);

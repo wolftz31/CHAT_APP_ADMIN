@@ -8,6 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
+        /* ====== ALL YOUR EXISTING STYLES (keep them) ====== */
         * {
             margin: 0;
             padding: 0;
@@ -69,6 +70,7 @@
         .app-header .header-actions {
             display: flex;
             gap: 10px;
+            align-items: center;
         }
 
         .app-header .header-actions button {
@@ -85,6 +87,88 @@
 
         .app-header .header-actions button:active {
             color: #25d366;
+        }
+
+        /* Online Toggle Switch */
+        .online-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #121212;
+            padding: 4px 10px 4px 14px;
+            border-radius: 20px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .online-toggle .label {
+            color: #8898aa;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #2a2a2a;
+            border-radius: 22px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: #25d366;
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(18px);
+        }
+
+        .toggle-status {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            min-width: 32px;
+            text-align: center;
+        }
+
+        .toggle-status.online {
+            color: #25d366;
+            background: rgba(37, 211, 102, 0.15);
+        }
+
+        .toggle-status.offline {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.15);
         }
 
         .stats-bar {
@@ -156,6 +240,25 @@
             font-weight: 700;
             font-size: 18px;
             flex-shrink: 0;
+            position: relative;
+        }
+
+        .conv-item .avatar .online-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #0a0a0a;
+        }
+
+        .conv-item .avatar .online-dot.online {
+            background: #25d366;
+        }
+
+        .conv-item .avatar .online-dot.offline {
+            background: #5a6a85;
         }
 
         .conv-item .conv-info {
@@ -299,8 +402,15 @@
         }
 
         .chat-view .chat-header .info .status {
-            color: #25d366;
             font-size: 11px;
+        }
+
+        .chat-view .chat-header .info .status.online {
+            color: #25d366;
+        }
+
+        .chat-view .chat-header .info .status.offline {
+            color: #5a6a85;
         }
 
         .chat-view .chat-header .chat-actions {
@@ -915,6 +1025,20 @@
             .stats-bar .stat-item .num {
                 font-size: 12px;
             }
+            .online-toggle .label {
+                font-size: 9px;
+            }
+            .toggle-switch {
+                width: 34px;
+                height: 20px;
+            }
+            .toggle-slider::before {
+                height: 14px;
+                width: 14px;
+            }
+            .toggle-switch input:checked + .toggle-slider::before {
+                transform: translateX(14px);
+            }
         }
     </style>
 </head>
@@ -925,6 +1049,14 @@
             <div class="app-header">
                 <div class="title"><i class="fab fa-whatsapp"></i> Admin</div>
                 <div class="header-actions">
+                    <div class="online-toggle">
+                        <span class="label">Status</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="onlineToggle" onchange="toggleOnlineStatus()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-status online" id="statusLabel">Online</span>
+                    </div>
                     <button onclick="loadConversations()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
                 </div>
             </div>
@@ -959,7 +1091,7 @@
                 <div class="avatar" id="chatAvatar">W</div>
                 <div class="info">
                     <div class="name" id="chatUserName">User</div>
-                    <div class="status" id="chatUserStatus">Online</div>
+                    <div class="status online" id="chatUserStatus">Online</div>
                 </div>
                 <div class="chat-actions">
                     <button onclick="deleteCurrentUser()" title="Delete User"><i class="fas fa-trash"></i></button>
@@ -1047,6 +1179,76 @@
         let messageListener = null;
         let confirmCallback = null;
         let adminLongPressTimer = null;
+        let isAdminOnline = true;
+
+        // ============================================================
+        // ONLINE STATUS TOGGLE
+        // ============================================================
+        function toggleOnlineStatus() {
+            const checkbox = document.getElementById('onlineToggle');
+            const statusLabel = document.getElementById('statusLabel');
+            
+            isAdminOnline = checkbox.checked;
+            
+            if (isAdminOnline) {
+                statusLabel.textContent = 'Online';
+                statusLabel.className = 'toggle-status online';
+                document.getElementById('chatUserStatus').textContent = 'Online';
+                document.getElementById('chatUserStatus').className = 'status online';
+            } else {
+                statusLabel.textContent = 'Offline';
+                statusLabel.className = 'toggle-status offline';
+                document.getElementById('chatUserStatus').textContent = 'Offline';
+                document.getElementById('chatUserStatus').className = 'status offline';
+            }
+            
+            // Save to Firebase so users can see admin status
+            database.ref('admin/status').set({
+                online: isAdminOnline,
+                lastUpdated: new Date().toISOString()
+            });
+            
+            // Also update a global admin status for users to read
+            database.ref('admin/online').set(isAdminOnline);
+            
+            console.log('👤 Admin status:', isAdminOnline ? 'Online' : 'Offline');
+        }
+
+        function loadAdminStatus() {
+            database.ref('admin/online').once('value', function(snapshot) {
+                const status = snapshot.val();
+                if (status !== null) {
+                    isAdminOnline = status;
+                    document.getElementById('onlineToggle').checked = status;
+                    const statusLabel = document.getElementById('statusLabel');
+                    if (status) {
+                        statusLabel.textContent = 'Online';
+                        statusLabel.className = 'toggle-status online';
+                    } else {
+                        statusLabel.textContent = 'Offline';
+                        statusLabel.className = 'toggle-status offline';
+                    }
+                }
+            });
+        }
+
+        // Listen for admin status changes from other devices
+        database.ref('admin/online').on('value', function(snapshot) {
+            const status = snapshot.val();
+            if (status !== null) {
+                isAdminOnline = status;
+                document.getElementById('onlineToggle').checked = status;
+                const statusLabel = document.getElementById('statusLabel');
+                if (status) {
+                    statusLabel.textContent = 'Online';
+                    statusLabel.className = 'toggle-status online';
+                } else {
+                    statusLabel.textContent = 'Offline';
+                    statusLabel.className = 'toggle-status offline';
+                }
+                console.log('👤 Admin status updated from Firebase:', status ? 'Online' : 'Offline');
+            }
+        });
 
         // ============================================================
         // CUSTOM CONFIRM DIALOG
@@ -1127,215 +1329,6 @@
                 console.log('🔔 Push error:', e);
             }
         }
-        
-        // ============================================================
-// FCM SERVICE ACCOUNT CONFIG
-// ============================================================
-const FCM_CONFIG = {
-    type: "service_account",
-    project_id: "admin-assisant-wolftz",
-    private_key_id: "8a8519126083ee43bcf7eb52a543f722b82eeaeb",
-    private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC873ZNO0WYC8IC\nbG5c0GGyd1A/S5G/u8crqeyZ0WVgR6w3wL4hEUS1/E/qvs6r21pVymsjrFQ39Fz2\nTtLoQZ8vRfCWVTDAESKir7cm5JlD4vQ+PD3FYBV1LW8sZ2iN0u6ldHC3kqb0CI7C\nnwb6hQKtYidmyKJOhi5/VYpHR0WFaJHc7HicC/AmuHrYY3BMPbwfXcUsIpG/kuL8\nSbnDel10M/RG4eLO37QI0JuRpmSwij1TaKSaRcqZAsPL0LWYINrs2mdZCcvjsKi1\nUyoFaXlG+uxNas3cb8pp5n4koXGfNXHOQbHgd3HA0VUemD/oHNynz0bSgzkWptfu\ngUN1GEnjAgMBAAECggEAAy1xa00ZSrxWSZCMFQPs9xs2/ny4rJig4EtRG/Xy/Ljx\ndlXHtmpCIiyZjEe9onnjvaU6dg6HTN81029x8DWiUrsCl9So9DuVivAZMw5z99NQ\nt92iTR59935WUoRB57JQQ/h+wmebmgETo/kYUFnj69Ys9kQrjqLtFBEnn5lDdXUZ\nHWx2BoK3cezTvxMIN4GN7QhtQXLi+ryQO+jeZhDbwla5lCm3fNTIgeZi9lAj+vGq\nUiU3cWULTPE2TDSvG6sE78q7poYi4nAP+efTD/6j5fXkkob+xaLpZSTviB8ivwqE\nXen/ZWsRsT3AdZ+nyiHmpDh2Iq/NY36l/euJrrERAQKBgQD3maa6vLcJPYyDAjmd\nKCEF0bQ60FqjKrJATB2rkDvTp2ILmSaVtAWCG2uiFJAIKcZu1v3ZVY0QMqm1/UUV\nvNGoTN/vrZNMH07A6GN4kSm2PW6TNOjaI5xKCMD/0S9BLdqDq4xBnvse920OG28w\nSoZWwqO7uuzQ05YpqM/V9LmZgQKBgQDDWFIt+A7Qvkd/dFbc0UtACcJ3BEccy+P8\npljDnNFSkZLMje+YUtuOcQTlccaIxqxJWbtMixO04AcCa/ozlkBU82QXOJa8NTpf\nAVWp+IWmv12V/Ya2rQ3ikTHJJdBhFYD5F1YLupKAhE53vyxy7xdXjcTY0bzCc0Y4\nbe/zyfZtYwKBgQDF1Bt2OlAYbvf0uPNlkOmJp7rT/yNcGUIgw3A1YuGaQ7O/xpcg\np5x7DwOZlcpa613js51RZ9x0o7YbdYgcTShKy1llPA9jk+Qtl7/aVkm4lS7jKTQf\nDrLSKFpkSzPxZPyhlZBT4f2NCW42Bk95iyH48j02QqzyUQw6rumYbpdYgQKBgQCL\nFCLOX8IMlKzK7cW6SbjNyyUNH5qRwgh8JOMlwky2ALcHtDZVuQhgjc7ynOLBFtIr\nFxvnD03khWv4KXBlsh/zW6ZzcfK/5RW99nFLJonhgnXbCDoVbXhpSv6rO6T0uh6t\nOhQlHZyYq5pCX3YCDoAL8f+obwt5ViE0o/EnHS+6CQKBgEWv8ntp5Z0R15r5B+Fr\nSfAC+qOy3F2gSVZ22QQ4nKU1EB5wc8FzFV8QrJ54vOtfAkl0czn0EkbjWk42aGi/\nL+1SS7MML6WYvCeeHKLx8pLadXXq/qRatu4fSsUa1yj9T17P/IIMvGJ52G+u4+ph\nTDKcM3CY1PJoGMHhYKiG1La1\n-----END PRIVATE KEY-----\n",
-    client_email: "firebase-adminsdk-fbsvc@admin-assisant-wolftz.iam.gserviceaccount.com",
-    client_id: "104566308015207403722",
-    auth_uri: "https://accounts.google.com/o/oauth2/auth",
-    token_uri: "https://oauth2.googleapis.com/token"
-};
-
-// ============================================================
-// GET FCM ACCESS TOKEN
-// ============================================================
-async function getFCMAccessToken() {
-    try {
-        const header = { alg: 'RS256', typ: 'JWT' };
-        const now = Math.floor(Date.now() / 1000);
-        const payload = {
-            iss: FCM_CONFIG.client_email,
-            scope: 'https://www.googleapis.com/auth/firebase.messaging',
-            aud: FCM_CONFIG.token_uri,
-            exp: now + 3600,
-            iat: now
-        };
-        
-        const encodedHeader = btoa(JSON.stringify(header));
-        const encodedPayload = btoa(JSON.stringify(payload));
-        
-        const signature = await signJWT(encodedHeader + '.' + encodedPayload);
-        const jwt = encodedHeader + '.' + encodedPayload + '.' + signature;
-        
-        const response = await fetch(FCM_CONFIG.token_uri, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=' + jwt
-        });
-        
-        const data = await response.json();
-        return data.access_token;
-        
-    } catch (error) {
-        console.error('FCM Token error:', error);
-        return null;
-    }
-}
-
-// ============================================================
-// SIGN JWT (Using Web Crypto API)
-// ============================================================
-async function signJWT(data) {
-    try {
-        const privateKey = await importPrivateKey(FCM_CONFIG.private_key);
-        const encoder = new TextEncoder();
-        const signature = await crypto.subtle.sign(
-            { name: 'RSASSA-PKCS1-v1_5' },
-            privateKey,
-            encoder.encode(data)
-        );
-        return btoa(String.fromCharCode(...new Uint8Array(signature)));
-    } catch (error) {
-        console.error('Signing error:', error);
-        return '';
-    }
-}
-
-// ============================================================
-// IMPORT PRIVATE KEY
-// ============================================================
-async function importPrivateKey(pem) {
-    try {
-        const pemHeader = '-----BEGIN PRIVATE KEY-----';
-        const pemFooter = '-----END PRIVATE KEY-----';
-        const pemContents = pem.substring(pemHeader.length, pem.indexOf(pemFooter));
-        const binaryDer = Uint8Array.from(atob(pemContents), function(c) { return c.charCodeAt(0); });
-        
-        return await crypto.subtle.importKey(
-            'pkcs8',
-            binaryDer.buffer,
-            { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-            false,
-            ['sign']
-        );
-    } catch (error) {
-        console.error('Import key error:', error);
-        throw error;
-    }
-}
-
-// ============================================================
-// SEND FCM PUSH NOTIFICATION (HTTP v1)
-// ============================================================
-async function sendFCMNotification(userId, message) {
-    if (!userId || !message) return;
-    
-    try {
-        const tokensRef = database.ref('users/' + userId + '/fcmTokens');
-        const snapshot = await tokensRef.once('value');
-        const tokens = snapshot.val();
-        
-        if (!tokens) {
-            console.log('No FCM tokens found for user');
-            return;
-        }
-        
-        const tokenList = Object.values(tokens);
-        const fcmToken = tokenList[tokenList.length - 1];
-        
-        if (!fcmToken) {
-            console.log('No valid FCM token');
-            return;
-        }
-        
-        console.log('📱 Sending FCM to token:', fcmToken.substring(0, 20) + '...');
-        
-        const accessToken = await getFCMAccessToken();
-        if (!accessToken) {
-            console.error('Failed to get access token');
-            return;
-        }
-        
-        const response = await fetch('https://fcm.googleapis.com/v1/projects/admin-assisant-wolftz/messages:send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + accessToken
-            },
-            body: JSON.stringify({
-                message: {
-                    token: fcmToken,
-                    notification: {
-                        title: 'Admin Support',
-                        body: message
-                    },
-                    data: {
-                        type: 'new_message',
-                        userId: userId,
-                        timestamp: Date.now().toString()
-                    },
-                    android: {
-                        notification: {
-                            sound: 'default'
-                        }
-                    },
-                    apns: {
-                        payload: {
-                            aps: {
-                                sound: 'default'
-                            }
-                        }
-                    },
-                    webpush: {
-                        headers: {
-                            Urgency: 'high'
-                        },
-                        notification: {
-                            icon: 'https://i.postimg.cc/1Rgpzyy3/ig.png',
-                            badge: 'https://i.postimg.cc/1Rgpzyy3/ig.png',
-                            vibrate: [200, 100, 200]
-                        }
-                    }
-                }
-            })
-        });
-        
-        const data = await response.json();
-        console.log('📨 FCM HTTP v1 response:', data);
-        return data;
-        
-    } catch (error) {
-        console.error('FCM error:', error);
-    }
-}
-
-// ============================================================
-// SEND BOTH ONESIGNAL AND FCM
-// ============================================================
-async function sendPushNotifications(userId, message) {
-    if (!userId || !message) return;
-    
-    // 1. OneSignal (for browsers)
-    try {
-        await fetch('https://onesignal.com/api/v1/notifications', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic os_v2_app_5aykfkv3tnej7foryzoucgpfcghdscp7wvauwzuack6c22lcbmmraqcrmm2jflgcq2dhkcv2lm7xikgrprmomeptnpsnbo35zzod4jq'
-            },
-            body: JSON.stringify({
-                app_id: 'e830a2aa-bb9b-489f-95d1-c65d4119e511',
-                include_external_user_ids: [userId],
-                contents: { 'en': message },
-                headings: { 'en': 'Admin Support' }
-            })
-        });
-        console.log('📨 OneSignal sent');
-    } catch(e) {
-        console.log('OneSignal error:', e);
-    }
-    
-    // 2. FCM (for WebView and Android)
-    await sendFCMNotification(userId, message);
-}
 
         // ============================================================
         // CONVERSATION FUNCTIONS
@@ -1383,8 +1376,13 @@ async function sendPushNotifications(userId, message) {
                     }
                 }
 
+                var isOnline = user.online === true;
+                var onlineDotClass = isOnline ? 'online' : 'offline';
+
                 html += '<div class="conv-item" onclick="openChat(\'' + userId + '\')">' +
-                    '<div class="avatar">' + initial + '</div>' +
+                    '<div class="avatar">' + initial +
+                        '<span class="online-dot ' + onlineDotClass + '"></span>' +
+                    '</div>' +
                     '<div class="conv-info">' +
                         '<div class="name">' + displayName + '</div>' +
                         '<div class="last-msg">' + lastMsgText + '</div>' +
@@ -1444,6 +1442,17 @@ async function sendPushNotifications(userId, message) {
             var displayName = user.username;
             document.getElementById('chatUserName').textContent = displayName;
             document.getElementById('chatAvatar').textContent = displayName.charAt(0).toUpperCase();
+
+            // Update user status in chat header
+            var isOnline = user.online === true;
+            var statusEl = document.getElementById('chatUserStatus');
+            if (isOnline) {
+                statusEl.textContent = 'Online';
+                statusEl.className = 'status online';
+            } else {
+                statusEl.textContent = 'Offline';
+                statusEl.className = 'status offline';
+            }
 
             document.getElementById('conversationView').style.display = 'none';
             document.getElementById('chatView').classList.add('active');
@@ -1561,6 +1570,21 @@ async function sendPushNotifications(userId, message) {
                 loadChatMessages(userId);
                 loadConversations();
             });
+            
+            // Also listen for user online status changes
+            database.ref('users/' + userId + '/online').on('value', function(snapshot) {
+                var isOnline = snapshot.val() === true;
+                var statusEl = document.getElementById('chatUserStatus');
+                if (isOnline) {
+                    statusEl.textContent = 'Online';
+                    statusEl.className = 'status online';
+                } else {
+                    statusEl.textContent = 'Offline';
+                    statusEl.className = 'status offline';
+                }
+                // Update conversation list too
+                loadConversations();
+            });
         }
 
         function markAsRead(userId) {
@@ -1576,7 +1600,7 @@ async function sendPushNotifications(userId, message) {
         }
 
         // ============================================================
-        // SEND REPLY
+        // SEND REPLY (with fixed image upload - 3 fallback methods)
         // ============================================================
         async function sendReply() {
             if (!currentUserId) return;
@@ -1602,20 +1626,95 @@ async function sendPushNotifications(userId, message) {
 
             if (selectedImage) {
                 try {
+                    showCustomConfirm(
+                        '📤 Uploading Image',
+                        'Please wait while your image is being uploaded...',
+                        null,
+                        false,
+                        '⏳'
+                    );
+                    
                     var formData = new FormData();
                     formData.append('image', selectedImage);
                     
-                    var IMGBB_API_KEY = '5e227c108107599d3c5c45e12eb22bdb';
+                    var imageUrl = null;
+                    var uploadError = null;
                     
-                    var response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
-                        method: 'POST',
-                        body: formData
-                    });
+                    // Try ImgBB first
+                    try {
+                        var IMGBB_API_KEY = '5e227c108107599d3c5c45e12eb22bdb';
+                        var response = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        var data = await response.json();
+                        
+                        if (data.success) {
+                            imageUrl = data.data.url;
+                            console.log('✅ ImgBB upload successful:', imageUrl);
+                        } else {
+                            uploadError = data.error?.message || 'ImgBB upload failed';
+                            console.warn('ImgBB upload failed:', uploadError);
+                        }
+                    } catch (imgbbError) {
+                        console.warn('ImgBB error:', imgbbError);
+                        uploadError = imgbbError.message;
+                    }
                     
-                    var data = await response.json();
+                    // If ImgBB fails, try Catbox.moe
+                    if (!imageUrl) {
+                        try {
+                            var catboxFormData = new FormData();
+                            catboxFormData.append('fileToUpload', selectedImage);
+                            catboxFormData.append('reqtype', 'fileupload');
+                            
+                            var catboxResponse = await fetch('https://catbox.moe/user/api.php', {
+                                method: 'POST',
+                                body: catboxFormData
+                            });
+                            
+                            var catboxUrl = await catboxResponse.text();
+                            
+                            if (catboxUrl && catboxUrl.startsWith('https://')) {
+                                imageUrl = catboxUrl.trim();
+                                console.log('✅ Catbox upload successful:', imageUrl);
+                            } else {
+                                throw new Error('Catbox upload failed');
+                            }
+                        } catch (catboxError) {
+                            console.warn('Catbox error:', catboxError);
+                            uploadError = catboxError.message;
+                        }
+                    }
                     
-                    if (data.success) {
-                        messageData.imageUrl = data.data.url;
+                    // If both fail, try base64 for small images
+                    if (!imageUrl) {
+                        try {
+                            const reader = new FileReader();
+                            const base64Promise = new Promise((resolve, reject) => {
+                                reader.onload = () => resolve(reader.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(selectedImage);
+                            });
+                            
+                            const base64Data = await base64Promise;
+                            if (base64Data.length < 500000) { // Less than 500KB
+                                imageUrl = base64Data;
+                                console.log('✅ Base64 fallback successful');
+                            } else {
+                                throw new Error('Image too large for base64 fallback');
+                            }
+                        } catch (base64Error) {
+                            console.warn('Base64 fallback failed:', base64Error);
+                            throw new Error('All image upload methods failed. Please try a smaller image (under 500KB).');
+                        }
+                    }
+                    
+                    closeCustomConfirm();
+                    
+                    if (imageUrl) {
+                        messageData.imageUrl = imageUrl;
                         await database.ref('users/' + currentUserId + '/notifications').push(messageData);
                         
                         input.value = '';
@@ -1628,14 +1727,24 @@ async function sendPushNotifications(userId, message) {
                         scrollChatToBottom();
                         
                         // Send push notification
-                        // Send push notifications (OneSignal + FCM)
-await sendPushNotifications(currentUserId, text);
+                        if (text) {
+                            await sendPushNotification(currentUserId, text);
+                        } else {
+                            await sendPushNotification(currentUserId, '📷 Image');
+                        }
                     } else {
-                        throw new Error(data.error?.message || 'Upload failed');
+                        throw new Error('Could not upload image. Please try again.');
                     }
                 } catch (error) {
                     console.error('Upload error:', error);
-                    alert('Error uploading image: ' + error.message);
+                    closeCustomConfirm();
+                    showCustomConfirm(
+                        '❌ Upload Failed',
+                        'Error uploading image: ' + error.message + '\n\nTry using a smaller image or different format.',
+                        null,
+                        false,
+                        '❌'
+                    );
                     sendBtn.disabled = false;
                     sendBtn.innerHTML = '➤';
                 }
@@ -1652,11 +1761,10 @@ await sendPushNotifications(currentUserId, text);
                     scrollChatToBottom();
                     
                     // Send push notification
-                    // Send push notifications (OneSignal + FCM)
-await sendPushNotifications(currentUserId, text);
+                    await sendPushNotification(currentUserId, text);
                 } catch (error) {
                     console.error('Database error:', error);
-                    alert('Error sending message: ' + error.message);
+                    showCustomConfirm('Error', 'Error sending message: ' + error.message, null, false, '❌');
                     sendBtn.disabled = false;
                     sendBtn.innerHTML = '➤';
                 }
@@ -1849,13 +1957,32 @@ await sendPushNotifications(currentUserId, text);
         // ============================================================
         // REAL-TIME LISTENERS & INIT
         // ============================================================
+        // Listen for user online status changes
+        database.ref('users').on('child_changed', function(snapshot) {
+            loadConversations();
+            // If current chat is open, update status
+            if (currentUserId && snapshot.key === currentUserId) {
+                var user = snapshot.val();
+                var isOnline = user.online === true;
+                var statusEl = document.getElementById('chatUserStatus');
+                if (isOnline) {
+                    statusEl.textContent = 'Online';
+                    statusEl.className = 'status online';
+                } else {
+                    statusEl.textContent = 'Offline';
+                    statusEl.className = 'status offline';
+                }
+            }
+        });
+
         database.ref('users').on('child_added', loadConversations);
-        database.ref('users').on('child_changed', loadConversations);
         database.ref('users').on('child_removed', loadConversations);
 
+        // Load initial data
         loadConversations();
+        loadAdminStatus();
 
-        console.log('📱 WhatsApp-style Admin Panel with usernames loaded');
+        console.log('📱 Admin Panel with Online/Offline Toggle loaded');
     </script>
 </body>
 </html>
